@@ -15,4 +15,4 @@ jobs:
       - name: Push to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://uw-math-ai:$HF_TOKEN@huggingface.co/spaces/uw-math-ai/theorem-search main
+        run: git push --force https://uw-math-ai:$HF_TOKEN@huggingface.co/spaces/uw-math-ai/theorem-search main
