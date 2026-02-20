@@ -28,18 +28,15 @@ if not re.fullmatch(r"G-[A-Za-z0-9]{10}", GA_MEASUREMENT_ID or ""):
     GA_MEASUREMENT_ID = "G-XKM7PWE7EN"
 SAFE_GA_MEASUREMENT_ID = html.escape(GA_MEASUREMENT_ID, quote=True)
 
-# Interface for searching and displaying results
-def search_and_display(query: str, filters: dict):
+# Run the search query and store results in session state
+def run_search(query: str, filters: dict):
     if not filters:
         st.warning("Select at least one source to search over.")
         return
 
-    serialized_filters = serialize_filters(filters)
-
     citation_weight = float(filters['citation_weight'])
     top_k = int(filters["top_k"])
 
-    # Encode query
     t0 = time.time()
     query_vec = cached_embed(query)
     embed_time = time.time() - t0
@@ -51,35 +48,29 @@ def search_and_display(query: str, filters: dict):
     selected_sources = filters["sources"]
     meta_sources = metadata_sources(selected_sources, source_caps)
 
-    # Types filter (all sources support types)
     if filters["types"]:
         where_clauses.append("theorem_type = ANY(%(types)s)")
         where_params["types"] = filters["types"]
 
     if meta_sources:
-        # Authors
         if filters["authors"]:
             where_clauses.append("authors && %(authors)s")
             where_params["authors"] = filters["authors"]
 
-        # Primary category
         if filters["tags"]:
             where_clauses.append("primary_category = ANY(%(tags)s)")
             where_params["tags"] = filters["tags"]
 
-        # Year
         if filters["year_range"]:
             y0, y1 = filters["year_range"]
             where_clauses.append("year BETWEEN %(year_min)s AND %(year_max)s")
             where_params["year_min"] = y0
             where_params["year_max"] = y1
 
-        # Journal status
         if filters["journal_status"] != "All":
             where_clauses.append("journal_published = %(is_journal)s")
             where_params["is_journal"] = filters["journal_status"] == "Journal Article"
 
-        # Citation range
         low, high = filters["citation_range"]
         if filters["include_unknown_citations"]:
             where_clauses.append(
@@ -91,7 +82,6 @@ def search_and_display(query: str, filters: dict):
         where_params["cite_low"] = low
         where_params["cite_high"] = high
 
-        # Paper ID / title filters
         pf = filters.get("paper_filter", {"ids": set(), "titles": set()})
         id_patterns = [f"{i}%" for i in pf["ids"]]
         title_patterns = [f"%{t}%" for t in pf["titles"]]
@@ -109,7 +99,6 @@ def search_and_display(query: str, filters: dict):
         if or_clauses:
             where_clauses.append("(" + " OR ".join(or_clauses) + ")")
 
-    # Fetch results
     results = fetch_results(
         query_vec=query_vec,
         citation_weight=citation_weight,
@@ -120,10 +109,21 @@ def search_and_display(query: str, filters: dict):
     )
     st.toast(f"**Embed time:** {embed_time} &nbsp; **SQL time:** {time.time() - t0}", icon="⏱")
 
-    # Display results
+    st.session_state["search_results"] = results
+    st.session_state["search_query"] = query
+    st.session_state["search_filters"] = serialize_filters(filters)
+
+
+def display_results():
+    results = st.session_state.get("search_results")
+    if results is None:
+        return
     if not results:
         st.warning("No results found for the current filters.")
         return
+
+    query = st.session_state["search_query"]
+    serialized_filters = st.session_state["search_filters"]
 
     for i, r in enumerate(results):
         with st.expander(
@@ -137,37 +137,28 @@ def search_and_display(query: str, filters: dict):
                     cit_str = "Unknown" if r['citations'] is None else str(r['citations'])
                     st.caption(f"**Citations:** {cit_str} | **Year:** {r['year']} | **Tag:** {r['primary_category']}")
             with feedback_col:
-                @st.fragment
-                def feedback():
+                submitted_key = f"submitted_{r['slogan_id']}"
+                vote_key = f"vote_{r['slogan_id']}"
+                already = st.session_state.get(submitted_key, False)
+                if already:
+                    vote = st.session_state.get(vote_key)
+                    st.markdown("👍" if vote == 1 else "👎")
+                else:
                     fb_key = f"feedback_{r['slogan_id']}"
-                    submitted_key = f"submitted_{r['slogan_id']}"
-
-                    def _on_change(_r=r):
-                        if st.session_state.get(submitted_key, False):
-                            return
-                        val = st.session_state.get(fb_key)
-                        if val is not None:
-                            payload = {
-                                "feedback": 1 if val == 1 else -1,
-                                "query": query,
-                                "url": _r["link"],
-                                "theorem_name": _r["theorem_name"],
-                                "authors": ", ".join(_r["authors"]) if _r["authors"] else None,
-                                **serialized_filters,
-                            }
-                            insert_feedback(payload)
-                            st.session_state[submitted_key] = True
-
-                    already = st.session_state.get(submitted_key, False)
-                    st.feedback(
-                        "thumbs",
-                        key=fb_key,
-                        disabled=already,
-                        on_change=_on_change,
-                    )
-                    if already:
-                        st.toast("Thank you for the feedback!")
-                feedback()
+                    fb = st.feedback("thumbs", key=fb_key)
+                    if fb is not None:
+                        payload = {
+                            "feedback": 1 if fb == 1 else -1,
+                            "query": query,
+                            "url": r["link"],
+                            "theorem_name": r["theorem_name"],
+                            "authors": ", ".join(r["authors"]) if r["authors"] else None,
+                            **serialized_filters,
+                        }
+                        insert_feedback(payload)
+                        st.session_state[submitted_key] = True
+                        st.session_state[vote_key] = fb
+                        st.rerun()
                 st.markdown(f"[Link]({r['link']})")
 
 # Header and sidebar
@@ -317,7 +308,9 @@ if submitted:
         st.session_state["last_logged_query"] = user_query
 
     with st.spinner("Fetching theorems..."):
-        search_and_display(user_query, filters)
+        run_search(user_query, filters)
+
+display_results()
 
 st.divider()
 st.markdown("To improve search quality, we store all user queries and feedback. Help us improve by upvoting the results you find useful, and downvoting ones that are not relevant.")
