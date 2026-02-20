@@ -1,0 +1,9 @@
+openai
+requests
+pgvector
+streamlit==1.50.0
+numpy
+boto3
+psycopg2-binary
+python-dotenv
+torch
