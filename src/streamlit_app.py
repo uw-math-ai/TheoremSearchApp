@@ -139,24 +139,34 @@ def search_and_display(query: str, filters: dict):
             with feedback_col:
                 @st.fragment
                 def feedback():
-                    feedback = st.feedback(
-                        "thumbs",
-                        key=f"feedback_{r['slogan_id']}"
-                    )
-                    if feedback is not None:
-                        submitted_key = f"submitted_{r['slogan_id']}"
-                        if not st.session_state.get(submitted_key, False):
+                    fb_key = f"feedback_{r['slogan_id']}"
+                    submitted_key = f"submitted_{r['slogan_id']}"
+
+                    def _on_change(_r=r):
+                        if st.session_state.get(submitted_key, False):
+                            return
+                        val = st.session_state.get(fb_key)
+                        if val is not None:
                             payload = {
-                                "feedback": 1 if feedback == 1 else -1,
+                                "feedback": 1 if val == 1 else -1,
                                 "query": query,
-                                "url": r["link"],
-                                "theorem_name": r["theorem_name"],
-                                "authors": ", ".join(r["authors"]) if r["authors"] else None,
+                                "url": _r["link"],
+                                "theorem_name": _r["theorem_name"],
+                                "authors": ", ".join(_r["authors"]) if _r["authors"] else None,
                                 **serialized_filters,
                             }
                             insert_feedback(payload)
                             st.session_state[submitted_key] = True
-                            st.toast("Thank you for the feedback!")
+
+                    already = st.session_state.get(submitted_key, False)
+                    st.feedback(
+                        "thumbs",
+                        key=fb_key,
+                        disabled=already,
+                        on_change=_on_change,
+                    )
+                    if already:
+                        st.toast("Thank you for the feedback!")
                 feedback()
                 st.markdown(f"[Link]({r['link']})")
 
