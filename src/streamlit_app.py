@@ -166,12 +166,24 @@ st.set_page_config(page_title="Theorem Search Demo", layout="wide")
 if "ga_loaded" not in st.session_state:
     components.html(
         f"""
-        <script async src="https://www.googletagmanager.com/gtag/js?id={SAFE_GA_MEASUREMENT_ID}"></script>
         <script>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){{dataLayer.push(arguments);}}
-          gtag('js', new Date());
-          gtag('config', '{SAFE_GA_MEASUREMENT_ID}');
+          // Inject gtag into the parent (main Streamlit page), not this iframe
+          var doc = window.parent.document;
+          if (!doc.getElementById('ga-gtag')) {{
+            var s = doc.createElement('script');
+            s.id = 'ga-gtag';
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id={SAFE_GA_MEASUREMENT_ID}';
+            doc.head.appendChild(s);
+            var s2 = doc.createElement('script');
+            s2.textContent = `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){{dataLayer.push(arguments);}}
+              gtag('js', new Date());
+              gtag('config', '{SAFE_GA_MEASUREMENT_ID}');
+            `;
+            doc.head.appendChild(s2);
+          }}
         </script>
         """,
         height=0,
