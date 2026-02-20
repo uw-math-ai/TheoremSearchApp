@@ -137,40 +137,27 @@ def search_and_display(query: str, filters: dict):
                     cit_str = "Unknown" if r['citations'] is None else str(r['citations'])
                     st.caption(f"**Citations:** {cit_str} | **Year:** {r['year']} | **Tag:** {r['primary_category']}")
             with feedback_col:
-                fb_key = f"fb_{r['slogan_id']}"
-                fb_state = st.session_state.get(fb_key)
-
-                def _submit_feedback(value, _key=fb_key, _r=r):
-                    st.session_state[_key] = value
-                    payload = {
-                        "feedback": value,
-                        "query": query,
-                        "url": _r["link"],
-                        "theorem_name": _r["theorem_name"],
-                        "authors": ", ".join(_r["authors"]) if _r["authors"] else None,
-                        **serialized_filters,
-                    }
-                    insert_feedback(payload)
-
-                up_type = "primary" if fb_state == 1 else "secondary"
-                down_type = "primary" if fb_state == -1 else "secondary"
-
-                st.button(
-                    ":thumbsup:" if fb_state != 1 else ":white_check_mark:",
-                    key=f"up_{r['slogan_id']}",
-                    on_click=_submit_feedback,
-                    args=(1,),
-                    disabled=fb_state is not None,
-                    type=up_type,
-                )
-                st.button(
-                    ":thumbsdown:" if fb_state != -1 else ":x:",
-                    key=f"down_{r['slogan_id']}",
-                    on_click=_submit_feedback,
-                    args=(-1,),
-                    disabled=fb_state is not None,
-                    type=down_type,
-                )
+                @st.fragment
+                def feedback():
+                    feedback = st.feedback(
+                        "thumbs",
+                        key=f"feedback_{r['slogan_id']}"
+                    )
+                    if feedback is not None:
+                        submitted_key = f"submitted_{r['slogan_id']}"
+                        if not st.session_state.get(submitted_key, False):
+                            payload = {
+                                "feedback": 1 if feedback == 1 else -1,
+                                "query": query,
+                                "url": r["link"],
+                                "theorem_name": r["theorem_name"],
+                                "authors": ", ".join(r["authors"]) if r["authors"] else None,
+                                **serialized_filters,
+                            }
+                            insert_feedback(payload)
+                            st.session_state[submitted_key] = True
+                            st.toast("Thank you for the feedback!")
+                feedback()
                 st.markdown(f"[Link]({r['link']})")
 
 # Header and sidebar
@@ -305,12 +292,14 @@ with st.sidebar:
         }
     else:
         filters = {}
-user_query = st.text_input(
-    "Enter a detailed query:",
-    "",
-    placeholder="Example: The Jones polynomial is link invariant",
-)
-if st.button("Search"):
+with st.form("search_form"):
+    user_query = st.text_input(
+        "Enter a detailed query:",
+        "",
+        placeholder="Example: The Jones polynomial is link invariant",
+    )
+    submitted = st.form_submit_button("Search")
+if submitted:
     if st.session_state.get("last_logged_query") is None:
         st.session_state["last_logged_query"] = ""
     if st.session_state.get("last_logged_query") != user_query:
