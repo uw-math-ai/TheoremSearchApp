@@ -27,26 +27,6 @@ _secret_dict = json.loads(_secret_value["SecretString"])
 _reader_host = os.getenv("RDS_READER_HOST")
 _writer_host = os.getenv("RDS_WRITER_HOST")
 
-_reader_pool = SimpleConnectionPool(
-    1, 10,
-    host=_reader_host,
-    port=int(_secret_dict.get("port", 5432)),
-    dbname=_dbname or _secret_dict.get("dbname"),
-    user=_secret_dict["username"],
-    password=_secret_dict["password"],
-    sslmode="require",
-)
-
-_writer_pool = SimpleConnectionPool(
-    1, 5,
-    host=_writer_host,
-    port=int(_secret_dict.get("port", 5432)),
-    dbname=_dbname or _secret_dict.get("dbname"),
-    user=_secret_dict["username"],
-    password=_secret_dict["password"],
-    sslmode="require",
-)
-
 def embed_query(query: str):
     response = _openai_client.embeddings.create(
         model="Qwen/Qwen3-Embedding-8B",
@@ -59,9 +39,9 @@ def cached_embed(query):
     return embed_query(query)
 
 @contextmanager
-def get_rds_conn(host: str):
+def reader_conn():
     with psycopg2.connect(
-        host=host,
+        host=_reader_host,
         port=int(_secret_dict.get("port", 5432)),
         dbname=_dbname or _secret_dict.get("dbname"),
         user=_secret_dict["username"],
@@ -72,22 +52,17 @@ def get_rds_conn(host: str):
         yield conn
 
 @contextmanager
-def reader_conn():
-    conn = _reader_pool.getconn()
-    try:
-        register_vector(conn)
-        yield conn
-    finally:
-        _reader_pool.putconn(conn)
-
-@contextmanager
 def writer_conn():
-    conn = _writer_pool.getconn()
-    try:
+    with psycopg2.connect(
+        host=_writer_host,
+        port=int(_secret_dict.get("port", 5432)),
+        dbname=_dbname or _secret_dict.get("dbname"),
+        user=_secret_dict["username"],
+        password=_secret_dict["password"],
+        sslmode="require",
+    ) as conn:
         register_vector(conn)
         yield conn
-    finally:
-        _writer_pool.putconn(conn)
 
 @st.cache_data(ttl=60*60*24*7)
 def load_sources():
@@ -192,7 +167,6 @@ def fetch_candidate_ids(
         extra_where = " AND " + " AND ".join(filter_clauses)
 
     with reader_conn() as conn, conn.cursor() as cur:
-        # Tune these
         per_source_multiplier = 3
         ef_search = max(80, top_k * 4)
 
