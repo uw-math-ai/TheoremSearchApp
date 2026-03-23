@@ -23,9 +23,7 @@ _dbname = os.getenv("RDS_DB_NAME")
 _sm_client = boto3.client("secretsmanager", region_name=_region)
 _secret_value = _sm_client.get_secret_value(SecretId=_secret_arn)
 _secret_dict = json.loads(_secret_value["SecretString"])
-
-_reader_host = os.getenv("RDS_READER_HOST")
-_writer_host = os.getenv("RDS_WRITER_HOST")
+_host = os.getenv("RDS_WRITER_HOST")
 
 def embed_query(query: str):
     response = _openai_client.embeddings.create(
@@ -39,22 +37,9 @@ def cached_embed(query):
     return embed_query(query)
 
 @contextmanager
-def reader_conn():
-    with psycopg2.connect(
-        host=_reader_host,
-        port=int(_secret_dict.get("port", 5432)),
-        dbname=_dbname or _secret_dict.get("dbname"),
-        user=_secret_dict["username"],
-        password=_secret_dict["password"],
-        sslmode="require",
-    ) as conn:
-        register_vector(conn)
-        yield conn
-
-@contextmanager
 def writer_conn():
     with psycopg2.connect(
-        host=_writer_host,
+        host=_host,
         port=int(_secret_dict.get("port", 5432)),
         dbname=_dbname or _secret_dict.get("dbname"),
         user=_secret_dict["username"],
@@ -66,31 +51,31 @@ def writer_conn():
 
 @st.cache_data(ttl=60*60*24*7)
 def load_sources():
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT sources FROM mv_sources;")
         return cur.fetchone()[0] or []
 
 @st.cache_data(ttl=60*60*24*7)
 def load_source_caps():
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT source, has_metadata FROM mv_source_caps;")
         return {row[0]: {"has_metadata": row[1]} for row in cur.fetchall()}
 
 @st.cache_data(ttl=60*60*24*7)
 def load_authors():
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT source, authors FROM mv_authors_by_source;")
         return {row[0]: row[1] for row in cur.fetchall()}
 
 @st.cache_data(ttl=60*60*24*7)
 def load_tags():
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT source, tags FROM mv_tags_by_source;")
         return {row[0]: row[1] for row in cur.fetchall()}
 
 @st.cache_data(ttl=60*60*24*7)
 def load_theorem_count():
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT cnt FROM mv_theorem_count;")
         return cur.fetchone()[0]
 
@@ -166,7 +151,7 @@ def fetch_candidate_ids(
     if filter_clauses:
         extra_where = " AND " + " AND ".join(filter_clauses)
 
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         per_source_multiplier = 3
         ef_search = max(80, top_k * 4)
 
@@ -228,7 +213,7 @@ def fetch_full_rows(slogan_rows):
     slogan_ids = [r[0] for r in slogan_rows]
     score_map = {r[0]: (r[1], r[2]) for r in slogan_rows}
 
-    with reader_conn() as conn, conn.cursor() as cur:
+    with writer_conn() as conn, conn.cursor() as cur:
         sql = """
         SELECT
             slogan_id,
