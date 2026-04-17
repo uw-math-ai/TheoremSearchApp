@@ -21,9 +21,19 @@ _region = os.getenv("AWS_REGION")
 _secret_arn = os.getenv("RDS_SECRET_ARN")
 _dbname = os.getenv("RDS_DB_NAME")
 _sm_client = boto3.client("secretsmanager", region_name=_region)
-_secret_value = _sm_client.get_secret_value(SecretId=_secret_arn)
-_secret_dict = json.loads(_secret_value["SecretString"])
 _host = os.getenv("RDS_WRITER_HOST")
+_secret_dict = None
+
+def _refresh_secret():
+    global _secret_dict
+    secret_value = _sm_client.get_secret_value(SecretId=_secret_arn)
+    _secret_dict = json.loads(secret_value["SecretString"])
+    return _secret_dict
+
+def _get_secret():
+    if _secret_dict is None:
+        _refresh_secret()
+    return _secret_dict
 
 def embed_query(query: str):
     response = _openai_client.embeddings.create(
@@ -36,18 +46,31 @@ def embed_query(query: str):
 def cached_embed(query):
     return embed_query(query)
 
+def _open_conn(secret):
+    return psycopg2.connect(
+        host=_host,
+        port=int(secret.get("port", 5432)),
+        dbname=_dbname or secret.get("dbname"),
+        user=secret["username"],
+        password=secret["password"],
+        sslmode="require",
+    )
+
 @contextmanager
 def writer_conn():
-    with psycopg2.connect(
-        host=_host,
-        port=int(_secret_dict.get("port", 5432)),
-        dbname=_dbname or _secret_dict.get("dbname"),
-        user=_secret_dict["username"],
-        password=_secret_dict["password"],
-        sslmode="require",
-    ) as conn:
+    secret = _get_secret()
+    try:
+        conn = _open_conn(secret)
+    except psycopg2.OperationalError as e:
+        if "authentication failed" in str(e).lower():
+            conn = _open_conn(_refresh_secret())
+        else:
+            raise
+    try:
         register_vector(conn)
         yield conn
+    finally:
+        conn.close()
 
 @st.cache_data(ttl=60*60*24*7)
 def load_sources():
