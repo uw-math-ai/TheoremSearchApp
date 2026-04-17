@@ -208,7 +208,7 @@ if not st.session_state['show_success']:
 st.warning("This site is deprecated. We recommend using https://theoremsearch.com/search instead.")
 
 # Sidebar filters
-st.logo(image="/images/math-ai-logo.jpg", size="large", link="https://sites.math.washington.edu/ai/")
+st.logo(image="images/math-ai-logo.jpg", size="large", link="https://sites.math.washington.edu/ai/")
 with st.sidebar:
     st.header("Search Filters")
 
