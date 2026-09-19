@@ -17,31 +17,17 @@ datasets:
 - uw-math-ai/theorem-search-dataset
 ---
 
-# Theorem Search
-
-Semantic search over 9 million mathematical theorems from arXiv, Stacks Project, ProofWiki, nLab, and more.
-
-**Live demo:** [huggingface.co/spaces/uw-math-ai/theorem-search](https://huggingface.co/spaces/uw-math-ai/theorem-search)
-
-**Paper:** [Semantic Search over 9 Million Mathematical Theorems](https://arxiv.org/abs/2602.05216)
-
-## Deployment
-
-This repo auto-deploys to [Hugging Face Spaces](https://huggingface.co/spaces/uw-math-ai/theorem-search) on every push to `main` via GitHub Actions.
-
-The app requires the following secrets/environment variables configured on the HF Space:
-- `AWS_REGION`, `RDS_SECRET_ARN`, `RDS_DB_NAME`, `RDS_READER_HOST`, `RDS_WRITER_HOST` — AWS RDS connection
-- `NEBIUS_API_KEY` — embedding API
-
-## Citation
+The details of this demo are described in the paper, ["Semantic Search over 9 Million Mathematical Theorems"](arxiv.org/abs/2602.05216).
 
 ```bibtex
-@misc{theoremsearch2026,
-      title={Semantic Search over 9 Million Mathematical Theorems},
-      author={Luke Alexander and Eric Leonen and Sophie Szeto and Artemii Remizov and Ignacio Tejeda and Giovanni Inchiostro and Vasily Ilin},
-      year={2026},
-      eprint={2602.05216},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR}
+@inproceedings{alexander2026semantic,
+  title         = {Semantic Search over 9 Million Mathematical Theorems},
+  author        = {Alexander, Luke and Leonen, Eric and Szeto, Sophie and Remizov, Artemii and Tejeda, Ignacio and Alper, Jarod and Inchiostro, Giovanni and Ilin, Vasily},
+  booktitle     = {ICLR 2026 Workshop on Logical Reasoning of Large Language Models},
+  year          = {2026},
+  eprint        = {2602.05216},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.IR},
+  url           = {https://arxiv.org/abs/2602.05216}
 }
 ```
