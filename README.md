@@ -8,19 +8,14 @@ app_port: 8501
 tags:
 - streamlit
 pinned: false
-short_description: Retired — search moved to theoremsearch.com
+short_description: Search moved to https://theoremsearch.com
 license: mit
 arxiv: 2602.05216
-thumbnail: >-
-  https://cdn-uploads.huggingface.co/production/uploads/68f6c5227dbd571d889d77d0/EL1gYLps8yOTb-zDDHTTx.png
 datasets:
 - uw-math-ai/theorem-search-dataset
 ---
 
-> **This Space is retired.** Search now lives at
-> **[theoremsearch.com](https://theoremsearch.com)**, over a larger corpus
-> that includes formal Lean statements. This Space no longer searches
-> anything — it only links to the active site.
+# Moved to **[theoremsearch.com](https://theoremsearch.com)**
 
 The details of the original demo are described in the paper, ["Semantic Search over 9 Million Mathematical Theorems"](https://arxiv.org/abs/2602.05216).
 
