@@ -21,12 +21,14 @@ The details of this demo are described in the paper, ["Semantic Search over 9 Mi
 
 ```bibtex
 @inproceedings{alexander2026semantic,
-  title         = {Semantic Search over 9 Million Mathematical Theorems},
   author        = {Alexander, Luke and Leonen, Eric and Szeto, Sophie and Remizov, Artemii and Tejeda, Ignacio and Alper, Jarod and Inchiostro, Giovanni and Ilin, Vasily},
-  booktitle     = {ICLR 2026 Workshop on Logical Reasoning of Large Language Models},
+  title         = {Semantic Search over 9 Million Mathematical Theorems},
+  booktitle     = {Advances in Neural Information Processing Systems},
+  volume        = {39},
   year          = {2026},
-  eprint        = {2602.05216},
+  note          = {Evaluations and Datasets Track},
   archivePrefix = {arXiv},
+  eprint        = {2602.05216},
   primaryClass  = {cs.IR},
   url           = {https://arxiv.org/abs/2602.05216}
 }
