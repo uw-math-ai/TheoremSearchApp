@@ -8,7 +8,7 @@ app_port: 8501
 tags:
 - streamlit
 pinned: false
-short_description: Find math theorems faster.
+short_description: Retired — search moved to theoremsearch.com
 license: mit
 arxiv: 2602.05216
 thumbnail: >-
@@ -17,7 +17,12 @@ datasets:
 - uw-math-ai/theorem-search-dataset
 ---
 
-The details of this demo are described in the paper, ["Semantic Search over 9 Million Mathematical Theorems"](arxiv.org/abs/2602.05216).
+> **This Space is retired.** Search now lives at
+> **[theoremsearch.com](https://theoremsearch.com)**, over a larger corpus
+> that includes formal Lean statements. This Space no longer searches
+> anything — it only links to the active site.
+
+The details of the original demo are described in the paper, ["Semantic Search over 9 Million Mathematical Theorems"](https://arxiv.org/abs/2602.05216).
 
 ```bibtex
 @inproceedings{alexander2026semantic,
